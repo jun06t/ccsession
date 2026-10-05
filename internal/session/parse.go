@@ -40,6 +40,7 @@ func ParseSessionTail(path string, maxBytes int64) (*Session, error) {
 
 	var (
 		hasUser      bool
+		customTitle  string // set by `/rename`; `claude --resume` shows it over aiTitle
 		aiTitle      string
 		lastPrompt   string
 		lastUserText string
@@ -76,6 +77,10 @@ func ParseSessionTail(path string, maxBytes int64) (*Session, error) {
 			}
 		}
 		switch e.Type {
+		case "custom-title":
+			if customTitle == "" && e.CustomTitle != "" {
+				customTitle = e.CustomTitle
+			}
 		case "ai-title":
 			if aiTitle == "" && e.AITitle != "" {
 				aiTitle = e.AITitle
@@ -129,7 +134,7 @@ func ParseSessionTail(path string, maxBytes int64) (*Session, error) {
 		return nil, ErrSessionEmpty
 	}
 
-	label := firstNonEmpty(aiTitle, lastPrompt, lastUserText)
+	label := firstNonEmpty(customTitle, aiTitle, lastPrompt, lastUserText)
 	if label == "" {
 		return nil, ErrSessionEmpty
 	}

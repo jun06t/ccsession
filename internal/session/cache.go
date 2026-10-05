@@ -12,7 +12,13 @@ import (
 
 const EnvCacheDir = "CCSESSION_SCAN_CACHE_DIR"
 
+// scanCacheVersion must be bumped whenever ParseSessionTail's output changes
+// for an unchanged transcript (e.g. label precedence), so stale records are
+// re-parsed instead of being served until the file is touched again.
+const scanCacheVersion = 1
+
 type scanCacheRecord struct {
+	Version         int     `json:"version,omitempty"`
 	Path            string  `json:"path"`
 	Size            int64   `json:"size"`
 	ModTimeUnixNano int64   `json:"mod_time_unix_nano"`
@@ -42,6 +48,7 @@ func cachedParseSessionTail(path string) (*Session, error) {
 	if err != nil {
 		if errors.Is(err, ErrSessionEmpty) {
 			_ = writeScanCache(cachePath, scanCacheRecord{
+				Version:         scanCacheVersion,
 				Path:            path,
 				Size:            fi.Size(),
 				ModTimeUnixNano: fi.ModTime().UnixNano(),
@@ -51,6 +58,7 @@ func cachedParseSessionTail(path string) (*Session, error) {
 		return nil, err
 	}
 	_ = writeScanCache(cachePath, scanCacheRecord{
+		Version:         scanCacheVersion,
 		Path:            path,
 		Size:            fi.Size(),
 		ModTimeUnixNano: fi.ModTime().UnixNano(),
@@ -84,7 +92,8 @@ func readScanCache(path, transcriptPath string, fi os.FileInfo) (scanCacheRecord
 	if err := json.Unmarshal(b, &rec); err != nil {
 		return scanCacheRecord{}, false
 	}
-	if rec.Path != transcriptPath ||
+	if rec.Version != scanCacheVersion ||
+		rec.Path != transcriptPath ||
 		rec.Size != fi.Size() ||
 		rec.ModTimeUnixNano != fi.ModTime().UnixNano() {
 		return scanCacheRecord{}, false

@@ -11,8 +11,8 @@ import (
 const EnvCacheDir = "CCSESSION_GREP_CACHE_DIR"
 
 const (
-	// Invalidate text cached before Cortex stopped skipping malformed JSONL.
-	cacheVersion     = 3
+	// Invalidate text cached before Claude custom-title entries were indexed.
+	cacheVersion     = 4
 	cacheIndexName   = "index.json"
 	cacheTextSep     = "\x00"
 	defaultCachePerm = 0o600

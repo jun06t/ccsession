@@ -186,6 +186,23 @@ func TestFilter_MatchesAITitleLabel(t *testing.T) {
 	}
 }
 
+func TestFilter_MatchesCustomTitleLabel(t *testing.T) {
+	projects := makeProjects(t)
+	p := filepath.Join(projects, "-p", "a.jsonl")
+	writeFile(t, p, strings.Join([]string{
+		`{"type":"user","message":{"role":"user","content":"plain body without the keyword"}}`,
+		`{"type":"custom-title","customTitle":"まるとくんペーシングPRレビュー"}`,
+	}, "\n")+"\n")
+
+	set, err := Filter("ペーシング", Options{})
+	if err != nil {
+		t.Fatalf("Filter: %v", err)
+	}
+	if _, ok := set[p]; !ok {
+		t.Errorf("expected custom-title keyword to hit, got %v", set)
+	}
+}
+
 func TestFilter_MatchesLastPrompt(t *testing.T) {
 	projects := makeProjects(t)
 	p := filepath.Join(projects, "-p", "a.jsonl")

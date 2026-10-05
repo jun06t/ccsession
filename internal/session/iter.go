@@ -30,8 +30,8 @@ func IterContent(path string, fn func(text string) bool) error {
 				// Yield only the *values* of explicitly-listed user-visible fields.
 				// This still keeps JSON keys (e.g. "type") and the cwd field out of
 				// the search corpus — matching only the things the user actually
-				// reads in the list view: conversation body, the ai-title that
-				// shows up as the label, and the last-prompt summary.
+				// reads in the list view: conversation body, the custom-title /
+				// ai-title that shows up as the label, and the last-prompt summary.
 				switch e.Type {
 				case "user", "assistant":
 					if e.Message == nil {
@@ -42,6 +42,10 @@ func IterContent(path string, fn func(text string) bool) error {
 						break
 					}
 					if !fn(text) {
+						return nil
+					}
+				case "custom-title":
+					if e.CustomTitle != "" && !fn(e.CustomTitle) {
 						return nil
 					}
 				case "ai-title":

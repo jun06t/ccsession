@@ -23,6 +23,30 @@ func writeJSONL(t *testing.T, dir, name, body string) string {
 	return p
 }
 
+// A title set via `/rename` is written as a custom-title entry and is what
+// `claude --resume` displays, so it must win over the auto-generated
+// ai-title. The latest custom-title wins when the session is renamed twice.
+func TestParseSessionTail_CustomTitleWins(t *testing.T) {
+	tmp := t.TempDir()
+	body := strings.Join([]string{
+		`{"type":"user","timestamp":"2026-05-26T11:00:00Z","message":{"role":"user","content":"hi"}}`,
+		`{"type":"custom-title","customTitle":"Old Name"}`,
+		`{"type":"ai-title","aiTitle":"Auto Title"}`,
+		`{"type":"custom-title","customTitle":"Renamed Session"}`,
+		`{"type":"ai-title","aiTitle":"Auto Title"}`,
+	}, "\n") + "\n"
+
+	p := writeJSONL(t, tmp, "11111111-1111-1111-1111-111111111111.jsonl", body)
+
+	s, err := ParseSessionTail(p, TailReadBytes)
+	if err != nil {
+		t.Fatalf("ParseSessionTail: %v", err)
+	}
+	if s.Label != "Renamed Session" {
+		t.Errorf("Label = %q, want %q", s.Label, "Renamed Session")
+	}
+}
+
 func TestParseSessionTail_AITitleWins(t *testing.T) {
 	tmp := t.TempDir()
 	cwdReal := t.TempDir() // exists, so CWDExists should be true

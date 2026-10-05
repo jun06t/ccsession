@@ -90,6 +90,39 @@ func TestScanCacheCorruptJSONFallsBackToParse(t *testing.T) {
 	}
 }
 
+// Records written before scanCacheVersion existed (or by an older version)
+// must be re-parsed, otherwise label-precedence changes never reach
+// transcripts that haven't been touched since.
+func TestScanCacheIgnoresStaleVersion(t *testing.T) {
+	home, projects := makeFakeHome(t)
+	t.Setenv("HOME", home)
+
+	proj := filepath.Join(projects, "-tmp-a")
+	path := writeSessionFile(t, proj, "11111111-1111-1111-1111-111111111111.jsonl",
+		"2024-05-26T10:00:00Z", "fresh")
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	cacheDir := os.Getenv(EnvCacheDir)
+	if err := writeScanCache(filepath.Join(cacheDir, scanCacheFileName(path)), scanCacheRecord{
+		Path:            path,
+		Size:            fi.Size(),
+		ModTimeUnixNano: fi.ModTime().UnixNano(),
+		Session:         Session{ID: "11111111-1111-1111-1111-111111111111", Label: "stale"},
+	}); err != nil {
+		t.Fatalf("write stale cache: %v", err)
+	}
+
+	got, err := Scan()
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	if len(got) != 1 || got[0].Label != "fresh" {
+		t.Fatalf("scan = %+v, want fresh label", got)
+	}
+}
+
 func TestScanCacheCachesEmptySessions(t *testing.T) {
 	home, projects := makeFakeHome(t)
 	t.Setenv("HOME", home)
@@ -207,7 +240,7 @@ func TestScanCacheDirUsesEnv(t *testing.T) {
 func TestScanCacheRecordValidatesMetadata(t *testing.T) {
 	now := time.Now()
 	fi := fakeFileInfo{size: 1, mod: now}
-	rec := scanCacheRecord{Path: "a", Size: 1, ModTimeUnixNano: now.UnixNano()}
+	rec := scanCacheRecord{Version: scanCacheVersion, Path: "a", Size: 1, ModTimeUnixNano: now.UnixNano()}
 	path := filepath.Join(t.TempDir(), "cache.json")
 	if err := writeScanCache(path, rec); err != nil {
 		t.Fatalf("writeScanCache: %v", err)
